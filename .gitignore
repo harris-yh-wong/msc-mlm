@@ -1,0 +1,20 @@
+# course materials
+_Lectures/
+_Practicals/
+_Ref/
+data/source/*.dta
+
+# module timetable
+7PAVMALM_2022_Timetable.pdf
+
+# assignment rubrics
+7PAVMALM_Assignment.pdf
+
+# lecture do files from instructor
+L*.do 
+
+# solution do files from instructor
+*_solution.do
+
+# 
+MLM_asgm_draft.docx
