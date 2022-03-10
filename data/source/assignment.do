@@ -12,7 +12,7 @@ label variable male "sex recoded to binary"
 rename panss0 base
 label variable base "PANSS score at baseline"
 
-/* EDA, Q1-Q3
+***** EDA, Q1-Q3 *****
 
 *! ANOMALIES
 list if therapy==3 & therapi<.
@@ -35,11 +35,14 @@ tab2 centre therapis, miss
 1. 
 Describe the baseline characteristics of the sample in this study. Consider if the randomization was adequately performed and the relevance of the sample to the target population. [3 marks] 
 */
-tabstat base, by(therapy) stat(mean sd min p25 p50 p75 max range iqr)
 
-tab2 therapy sex, chi miss
-tab2 therapy episode, chi miss
-tab2 therapy substmis, chi miss
+* baseline symptoms by 
+tabstat base, by(interven) stat(mean sd min p25 p50 p75 max range iqr)
+
+
+tab2 interven sex, chi miss
+tab2 interven episode, chi miss
+tab2 interven substmis, chi miss
 *? do we need to conduct any statistical test?
 
 /*
@@ -74,27 +77,33 @@ You should consider the following:
 • Graphical displays to summarise the findings from the modelling 
 */
 
-frame copy default wide 
+frame copy default default_cp
+frame rename default wide
+
+
 
 ****** RESHAPING
-frame default {
+frame default_cp {
 	reshape long panss, i(idnumber) j(month)
 	sort idnumber
 	label variable month "month of PANSS measurement"
 	label variable panss "PANSS score"
 }
-frame rename default long
-frame change long
+frame rename default_cp long
 
 
-****** TRANSFORM OUTCOME
-gen logpanss=log10(panss)
-label variable logpanss "PANSS score (log10)"
-// gen transformed=sqrt(panss-30) if panss>25
-// scatter logp transformed || function y = x, ra(logp) clpat(dash)
+frame long {
+	****** TRANSFORM OUTCOME
+	gen logpanss=log10(panss)
+	label variable logpanss "PANSS score (log10)"
+	// gen transformed=sqrt(panss-30) if panss>25
+	// scatter logp transformed || function y = x, ra(logp) clpat(dash)
 
-gen logbase=log10(base+1)
-label variable logbase "PANSS score at baseline (log10 p+1)"
+	gen logbase=log10(base+1)
+	label variable logbase "PANSS score at baseline (log10 p+1)"
+}
+
+
 
 
 
@@ -168,12 +177,12 @@ It is important to consider the impact of missing outcome data on the results. R
 [10 marks]
 */
 
-frame copy wide jm 
-frame change jm
+///// RESTRICTING TO SUBJECTS WITH MONOTONE MISSINGNESS
 
-///// GENERATE VARIABLES FOR MISSINGNESS
+frame copy wide monotone_miss 
+frame change monotone_miss
 
-** monotone missingness
+** generate flag for monotone missingness 
 gen monotone_miss=0
 replace monotone_miss = 1 if /*
 */ (panss1!=. & panss3!=. & panss9!=. & panss18!=.) | /*
@@ -188,6 +197,12 @@ misstable pattern panss1 panss3 panss9 panss18 if monotone_miss==1, freq bypatte
 ** Restricting the sample to those participants with monotonic missingness
 keep if monotone_miss==1
 
+
+///// PLOTTING MEAN SCORE BY DROPOUT PATTERN
+
+frame copy monotone_miss dropout_ptrn_viz
+frame change dropout_ptrn_viz
+
 ///// CLONE THE BASELINE VARIABLE FOR PLOTTING
 clonevar panss0 = base
 ** number of non-missing observations by individual
@@ -195,7 +210,6 @@ egen nobs=rownonmiss(panss*)
 label variable nobs "number of non-missing PANSS measurements"
 
 ///// PREPARING THE DATA
-
 
 ** Reshaping
 reshape long panss, i(idnumber) j(month)
@@ -221,32 +235,26 @@ twoway line panss_ptrn* week, sort
 	xlabel(0 6 12 36 72)
 	legend(
 		cols(1) textwidth(60)
-		lab(1 "Drop-out at 6 weeks")
-		lab(2 "Drop-out at 3 months")
-		lab(3 "Drop-out at 6 months")
+		lab(1 "Dropout at 6 weeks")
+		lab(2 "Dropout at 3 months")
+		lab(3 "Dropout at 6 months")
 		lab(4 "Completers")
 	)
-	name("jm_mean_score_by_dropout_ptrn")
+	name("jm_mean_score_by_dropout_ptrn", replace)
 ;
 #delimit cr
 
-/*
-INTERPRETATION:
-some evidence showing that drop-out may not be random, 
-as suggested by the flattening of the curve (no further improvement)
-*/ 
+
+
+
 
 
 
 ///// MODELLING
 
-
-mixed PANSS treat##c.week || indv:
-
-*use PANSS.dta
-stset survtime, failure(inform=1) id(indv)
-streg i.treat, distribution(weibull) nohr 
-stcurve, surv at1(treat=1) at2(treat=2) at3(treat=3)
+***** MODEL 5A
+mixed panss interven##i.week || idnumber:
+estimates store mod_5a
 
 
 ** delete rows corresponding to missing measurement
@@ -254,9 +262,115 @@ drop if panss==.
 
 
 
-// by week nobs, sort: egen panss_ptrn = mean(PANSS)
-// qui reshape wide panss_ptrn, i(indv week) j(nobs)
-// twoway line panss_ptrn* week, sort legend(order(5 "Completers")) title(Observed mean PANSS by dropout pattern) ytitle(PANSS)
+
+///// START
+
+frame copy monotone_miss joint_modelling
+frame change joint_modelling
+
+** number of non-missing observations by individual
+egen nobs=rownonmiss(panss*)
+label variable nobs "number of non-missing PANSS measurements"
+
+///// PREPARING THE DATA
+
+** Reshaping
+reshape long panss, i(idnumber) j(month)
+sort idnumber
+label variable month "month of PANSS measurement"
+label variable panss "PANSS score"
+
+** recode month
+recode month (0=0) (1=6) (3=12) (9=36) (18=72), generate(week)
+label variable week "week of PANSS measurement"
+
+** generate analysis time
+drop if panss==.
+bysort idnumber: egen survtime = max(week)
+
+
+** preprocessing
+bysort idnumber: gen start = week
+bysort idnumber: gen stop = start[_n+1]
+gen event = 0
+gen episode1st = 2-episode
+bysort idnumber: replace stop = survtime if _n==_N
+bysort idnumber: replace event = episode1st if _n==_N
+
+tab interven, gen(interven_)
+
+stset stop, enter(start) failure(event=1) id(idnumber)
+stjm panss interven_1 interven_2, /*
+*/ panel(idnumber) survmodel(weibull) ffp(1) /*
+*/ timeinteraction(interven_1 interven_2) /*
+*/ survcov(interven_1 interven_2) /*
+*/ intassociation nocurrent gh(10)
+
+
+/*
+ 
+** number of non-missing observations by individual
+egen nobs=rownonmiss(panss*)
+label variable nobs "number of non-missing PANSS measurements"
+
+///// PREPARING THE DATA
+
+** Reshaping
+reshape long panss, i(idnumber) j(month)
+sort idnumber
+label variable month "month of PANSS measurement"
+label variable panss "PANSS score"
+
+//// VISUALIZE DATA
+
+** recode month
+recode month (0=0) (1=6) (3=12) (9=36) (18=72), generate(week)
+label variable week "week of PANSS measurement"
+
+** generate analysis time
+drop if panss==.
+bysort idnumber: egen survtime = max(week)
+
+drop month
+reshape wide panss, i(idnumber) j(week)
+
+*/
+
+/*
+
+stset survtime, failure(inform=1) id(indv)
+streg i.treat, distribution(weibull) nohr 
+stcurve, surv at1(treat=1) at2(treat=2) at3(treat=3)
+
+*Reshape the data for joint modelling
+reshape long PANSS, i(indv) j(week)
+drop if PANSS==.
+
+*Create the correct format for stjm models
+bys indv: gen start = week
+bys indv: gen stop = start[_n+1]
+gen event = 0
+bys indv: replace stop = survtime if _n==_N
+bys indv: replace event = inform if _n==_N
+
+tab treat, gen(trt)
+
+stset stop, enter(start) failure(event=1) id(indv)
+stjm PANSS trt2 trt3, panel(indv) survm(w) ffp(1) timeinteraction(trt2 trt3) survcov(trt2 trt3) intassociation nocurrent gh(10)
+
+*/ 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -266,11 +380,5 @@ gen logpanss=log10(panss)
 label variable logpanss "PANSS score (log10)"
 gen logbase=log10(base+1)
 label variable logbase "PANSS score at baseline (log10 p+1)"
-
-
-///// JOINT MODELLING
-xtset indv
-
-
 	 
 log close
