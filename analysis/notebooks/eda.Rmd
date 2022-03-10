@@ -37,8 +37,6 @@ myFuncList = list(
     "median_sd" = paste_median_sd
 )
 
-
-
 table1 <- generate_table_1(df2, 
                  group_by="interven",
                  cat_features = c("sex", "substmis2", "episode"),
