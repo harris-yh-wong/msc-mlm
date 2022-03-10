@@ -168,24 +168,109 @@ It is important to consider the impact of missing outcome data on the results. R
 [10 marks]
 */
 
-///// MONOTONIC MISSINGNESS FLAG
-frame change wide
+frame copy wide jm 
+frame change jm
 
-gen monotone_miss=.
+///// GENERATE VARIABLES FOR MISSINGNESS
+
+** monotone missingness
+gen monotone_miss=0
 replace monotone_miss = 1 if /*
-*/ (panss1==. & panss3==. & panss9==. & panss18==.) | /*
-*/ (panss1==. & panss3==. & panss9==. & panss18!=.) | /*
-*/ (panss1==. & panss3==. & panss9!=. & panss18!=.) | /*
-*/ (panss1==. & panss3!=. & panss9!=. & panss18!=.)
+*/ (panss1!=. & panss3!=. & panss9!=. & panss18!=.) | /*
+*/ (panss1!=. & panss3!=. & panss9!=. & panss18==.) | /*
+*/ (panss1!=. & panss3!=. & panss9==. & panss18==.) | /*
+*/ (panss1!=. & panss3==. & panss9==. & panss18==.)
+label variable monotone_miss "binary flag for monotone missingness"
 
-* asssure monotone_miss is valid
-* complete nesting if monotone_miss ==1 
-misstable nested base panss1 panss3 panss9 panss18 if monotone_miss==1
+* assure monotone_miss is valid
+misstable pattern panss1 panss3 panss9 panss18 if monotone_miss==1, freq bypattern asis
+
+** Restricting the sample to those participants with monotonic missingness
+keep if monotone_miss==1
+
+///// CLONE THE BASELINE VARIABLE FOR PLOTTING
+clonevar panss0 = base
+** number of non-missing observations by individual
+egen nobs=rownonmiss(panss*)
+label variable nobs "number of non-missing PANSS measurements"
+
+///// PREPARING THE DATA
 
 
-///// SURVIVAL MODELLING
-stset 
-stjm 
+** Reshaping
+reshape long panss, i(idnumber) j(month)
+sort idnumber
+label variable month "month of PANSS measurement"
+label variable panss "PANSS score"
+
+//// VISUALIZE DATA
+
+** recode month
+recode month (0=0) (1=6) (3=12) (9=36) (18=72), generate(week)
+label variable week "week of PANSS measurement"
+
+** visualization: mean trajectory by group
+keep if nobs>1
+by week nobs, sort: egen panss_ptrn = mean(panss)
+qui reshape wide panss_ptrn, i(idnumber week) j(nobs)
+
+#delimit ;
+twoway line panss_ptrn* week, sort 
+	title("Observed mean PANSS by dropout pattern") 
+	ytitle("PANSS score") 
+	xlabel(0 6 12 36 72)
+	legend(
+		cols(1) textwidth(60)
+		lab(1 "Drop-out at 6 weeks")
+		lab(2 "Drop-out at 3 months")
+		lab(3 "Drop-out at 6 months")
+		lab(4 "Completers")
+	)
+	name("jm_mean_score_by_dropout_ptrn")
+;
+#delimit cr
+
+/*
+INTERPRETATION:
+some evidence showing that drop-out may not be random, 
+as suggested by the flattening of the curve (no further improvement)
+*/ 
+
+
+
+///// MODELLING
+
+
+mixed PANSS treat##c.week || indv:
+
+*use PANSS.dta
+stset survtime, failure(inform=1) id(indv)
+streg i.treat, distribution(weibull) nohr 
+stcurve, surv at1(treat=1) at2(treat=2) at3(treat=3)
+
+
+** delete rows corresponding to missing measurement
+drop if panss==.
+
+
+
+// by week nobs, sort: egen panss_ptrn = mean(PANSS)
+// qui reshape wide panss_ptrn, i(indv week) j(nobs)
+// twoway line panss_ptrn* week, sort legend(order(5 "Completers")) title(Observed mean PANSS by dropout pattern) ytitle(PANSS)
+
+
+
+
+** TRANSFORM OUTCOME
+gen logpanss=log10(panss)
+label variable logpanss "PANSS score (log10)"
+gen logbase=log10(base+1)
+label variable logbase "PANSS score at baseline (log10 p+1)"
+
+
+///// JOINT MODELLING
+xtset indv
+
 
 	 
 log close
