@@ -40,7 +40,7 @@ myFuncList = list(
 
 
 table1 <- generate_table_1(df2, 
-                 group_by="therapy",
+                 group_by="interven",
                  cat_features = c("sex", "substmis2", "episode"),
                  num_features = c('panss0','ageentr','yearsofe','dup'),
                  fun_list_categorical = myFuncList
