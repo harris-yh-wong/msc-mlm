@@ -1,0 +1,53 @@
+---
+title: "R Notebook"
+output: pdf_document
+---
+
+```{r}
+library(here)
+library(tidyverse)
+library(haven)
+```
+
+```{r}
+source(here("scripts","generate_Table_1.R"))
+```
+
+```{r}
+df <- readstata13::read.dta13(here("data","source","Socrates_dataset.dta"), generate.factors=TRUE, nonint.factors=TRUE)
+```
+
+```{r}
+df2 <- df %>% 
+    mutate(
+        substmis2 = fct_collapse(substmis, none = c("none", "0"))
+    )
+```
+
+```{r}
+
+output <- function(x) {
+    median = round(median(x, na.rm=TRUE), 1)
+    sd = round(sd(x, na.rm=TRUE), 1)
+    out = glue::glue("{median} ({sd})")
+    return(out)
+}
+
+myFunc = list(
+    "out" = output
+)
+
+
+
+table1 <- generate_table_1(df2, 
+                 group_by="interven2",
+                 cat_features = c("sex", "substmis2", "episode"),
+                 num_features = c('panss0','ageentr','yearsofe','dup'),
+                 fun_list_categorical = myFunc
+)
+
+table1
+
+```
+
+
