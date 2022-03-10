@@ -11,10 +11,10 @@ data/source/*.dta
 7PAVMALM_Assignment.pdf
 
 # lecture do files from instructor
-L*.do 
+L*.do
 
 # solution do files from instructor
 *_solution.do
 
-# 
+# assignment draft
 MLM_asgm_draft.docx
