@@ -1,0 +1,14 @@
+level,CBT,SC,RC,Total,variable
+male,72,74,70,216,sex
+female,29,31,33,93,sex
+none,33,42,38,113,substmis2
+occasional,18,21,22,61,substmis2
+weekly,17,6,14,37,substmis2
+daily,13,24,8,45,substmis2
+unknown,20,12,21,53,substmis2
+1st,85,86,86,257,episode
+2nd,16,19,17,52,episode
+,89 (17.7),86 (19.5),87 (16.7),86 (18),panss0
+,29.1 (11.6),27 (9.4),27.2 (10),27.4 (10.4),ageentr
+,11 (2),11 (2.5),11 (2.4),11 (2.4),yearsofe
+,12 (83.4),10 (85.2),9.5 (64.9),12 (78.3),dup
