@@ -26,28 +26,27 @@ df2 <- df %>%
 
 ```{r}
 
-output <- function(x) {
+paste_median_sd <- function(x) {
     median = round(median(x, na.rm=TRUE), 1)
     sd = round(sd(x, na.rm=TRUE), 1)
     out = glue::glue("{median} ({sd})")
     return(out)
 }
 
-myFunc = list(
-    "out" = output
+myFuncList = list(
+    "median_sd" = paste_median_sd
 )
 
 
 
 table1 <- generate_table_1(df2, 
-                 group_by="interven2",
+                 group_by="therapy",
                  cat_features = c("sex", "substmis2", "episode"),
                  num_features = c('panss0','ageentr','yearsofe','dup'),
-                 fun_list_categorical = myFunc
+                 fun_list_categorical = myFuncList
 )
 
-table1
-
+table1 %>% write_csv(here("data","clean","table1.csv"))
 ```
 
 
