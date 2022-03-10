@@ -12,45 +12,32 @@ label variable male "sex recoded to binary"
 rename panss0 base
 label variable base "PANSS score at baseline"
 
-replace substmis=8 if substmis==0
 * consider "0" to be "none"
+replace substmis=8 if substmis==0
 
 
 /* Q1 */
-tab2 therapy sex
-tab2 therapy substmis
-tab2 therapy episode
-tabstat base yearsofe ageentr dup, by(therapy) stat(p50 sd)
-
+tab2 interven sex, chi
+tab2 interven substmis, chi
+tab2 interven episode, chi
+tabstat base yearsofe ageentr dup, by(interven) stat(p50 sd)
 
 /* Q2 */ 
 misstable summarize base panss1 panss3 panss9 panss18
 misstable patterns base panss1 panss3 panss9 panss18, asis bypattern
 misstable tree base panss1 panss3 panss9 panss18, asis
 
+/* Q3 */
+tab2 centre interven, miss
+* crossed clustering design with 3 centres in total
 
-/*
-3. 
-Describe the statistical methods to be used in question 4, including any justification of covariates used in models, and, if relevant, any underlying assumptions of the statistical methods. 
-Note: You may wish to structure this as the methods section of a journal article. [12 marks] 
-*/
+tab2 centre therapis, miss
+* no therapist treats patients in >1 centre
+* therapist is at a lower hierarchical level than centre. 
 
-*/ 
+tab2 interven therapis, miss
 
-
-/* Q4
-Estimate the treatment effect of the combined intervention arm to routine care alone on PANSS scores at 18 months. 
-Check the robustness of your results by performing suitable sensitivity analyses. 
-[25 marks]
-
-You should consider the following: 
-• An appropriate longitudinal model, based on scaling of the time variable 
-• Any additional sources of clustering in the data 
-• An appropriate random effect structure, based on model comparisons 
-• Choice of baseline variables to include in the model 
-• Validity of underlying statistical assumptions 
-• Graphical displays to summarise the findings from the modelling 
-*/
+/* Q4 */ 
 
 frame copy default default_cp
 frame rename default wide
