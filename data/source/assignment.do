@@ -12,43 +12,18 @@ label variable male "sex recoded to binary"
 rename panss0 base
 label variable base "PANSS score at baseline"
 
-***** EDA, Q1-Q3 *****
-
-*! ANOMALIES
-list if therapy==3 & therapi<.
-* irrelevant therapist IDs
+replace substmis=8 if substmis==0
+* consider "0" to be "none"
 
 
-/*
-EXPLORATORY ANALYSIS
-*/
-tab2 centre therapy, miss
-* crossed clustering design with 3 centres in total
-
-tab2 centre therapis, miss
-* no therapist treats patients in >1 centre
-* therapist is at a lower hierarchical level than centre. 
+/* Q1 */
+tab2 therapy sex
+tab2 therapy substmis
+tab2 therapy episode
+tabstat base yearsofe ageentr dup, by(therapy) stat(p50 sd)
 
 
-
-/*
-1. 
-Describe the baseline characteristics of the sample in this study. Consider if the randomization was adequately performed and the relevance of the sample to the target population. [3 marks] 
-*/
-
-* baseline symptoms by 
-tabstat base, by(interven) stat(mean sd min p25 p50 p75 max range iqr)
-
-
-tab2 interven sex, chi miss
-tab2 interven episode, chi miss
-tab2 interven substmis, chi miss
-*? do we need to conduct any statistical test?
-
-/*
-2. 
-Summarize the patterns of missing data in the PANSS measure over time. [5 marks] 
-*/
+/* Q2 */ 
 misstable summarize base panss1 panss3 panss9 panss18
 misstable patterns base panss1 panss3 panss9 panss18, asis bypattern
 misstable tree base panss1 panss3 panss9 panss18, asis
